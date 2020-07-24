@@ -34,7 +34,7 @@ Connection* Server::NewConnection(int socket){
 		return nullptr;
 	}
 
-	Connection* con = new Connection();
+	Connection* con = new Connection;
 	con->SetSocket(socket);
 	_cons.push_back(con);
 	return con;
@@ -46,34 +46,41 @@ void setnonblockingmode(int fd) {
 }
 
 void Server::OnPacket(Packet packet) {
+	auto con = packet.GetConnection();
 	switch(packet.GetType()) {
 		case C_LOGIN:
 			{
+				UserPtr user = con->GetUser(); 
+				if (!user)
+				{
+					user = NewUser(con);
+					LocalPtr lobby = GetLobby();
+					if (lobby) {
+						lobby->Enter(user);
+					}
 
-				game::s_login loginPacket;
-				loginPacket.set_id(0);
-				loginPacket.set_name("temp");
+					game::s_login loginPacket;
+					loginPacket.set_id(0);
+					loginPacket.set_name("temp");
 
-				auto con = packet.GetConnection();
-				con->SendPacket<game::s_login>(S_LOGIN, &loginPacket);
+					con->SendPacket<game::s_login>(S_LOGIN, &loginPacket);
+				}
+				return;
 			}
 			break;
-		case C_CHAT:
-			{
-				game::chat_message* receivePacket = (game::chat_message *)packet.GetData();
+	}
 
-				game::chat_message sendPacket;
-				sendPacket.set_id(0);
-				sendPacket.set_name(receivePacket->name().c_str());
-				sendPacket.set_msg(receivePacket->msg().c_str());
-				auto con = packet.GetConnection();
-				con->SendPacket<game::chat_message>(S_CHAT, &sendPacket);
-			}
+	UserPtr user = con->GetUser();
+	if (user) {
+		if (user->OnPacket(packet)) {
+			return;
+		}
 	}
 }
 
-
-
+UserPtr Server::NewUser(Connection *con) {
+	return UserPtr(new User());
+}
 void Server::Run(int listeningPort) {
 
 	int listenSocket;
@@ -105,7 +112,7 @@ void Server::Run(int listeningPort) {
 
 	struct epoll_event stEvent;
 	stEvent.events = EPOLLIN;
-	stEvent.data.fd = listenSocket;
+	stEvent.data.ptr = &userLogin;
 
 	int epfd = epoll_create(EPOLL_SIZE);
 	epoll_ctl(epfd, EPOLL_CTL_ADD, listenSocket, &stEvent);
@@ -113,6 +120,7 @@ void Server::Run(int listeningPort) {
 	char buf[BUF_SIZE];
 	int eventCnt = 0;
 	struct epoll_event *epEvents=(struct epoll_event*)malloc(sizeof(struct epoll_event) * EPOLL_SIZE);
+	
 	while(1)
 	{
 		printf("OnWiat%d\n", errno);
@@ -124,7 +132,7 @@ void Server::Run(int listeningPort) {
 		}
 
 		for (int i =0; i < eventCnt; ++i) {
-			if (epEvents[i].data.fd == listenSocket) {
+			if (epEvents[i].data.ptr == &userLogin) {
 
 				socklen_t addrSize = sizeof(connectedAddr);
 				connectedSocket = accept(listenSocket, (struct sockaddr*)&connectedAddr, &addrSize);
@@ -155,3 +163,6 @@ void Server::Run(int listeningPort) {
 	close(epfd);
 }
 
+LocalPtr Server::GetLobby(){
+	return LocalPtr();
+}

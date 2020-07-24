@@ -1,6 +1,6 @@
 CC=g++
 TARGET=a.out
-SRC=$(wildcard *.cpp) $(wildcard *.cc)
+SRC=$(wildcard *.cpp)
 OBJ=$(SRC:.cpp=.o)
 CXXFLAGS=-std=c++17 -c -pthread -lprotoc `pkg-config --cflags --libs protobuf`
 
@@ -8,15 +8,15 @@ LIB_DIR=-L/home/ubuntu/work/libnp/libnp/Common
 LIB_INC=-I/home/ubuntu/work/libnp/libnp/Common
 
 
-$(TARGET): $(OBJ)
-	$(CC) -std=c++17 -pthread -lprotoc -o $(TARGET) $(OBJ) `pkg-config --cflags --libs protobuf`
+$(TARGET): $(OBJ) msg.pb.o
+	$(CC) -std=c++17 -pthread -lprotoc -o $(TARGET) $(OBJ) msg.pb.o `pkg-config --cflags --libs protobuf`
 
 .cpp.o:
 	$(CC) -c -std=c++17 -pthread -lprotoc `pkg-config --cflags --libs protobuf` -lnp $(LIB_INC) $(LIB_DIR) $(SRC)
 
-.cc.o:
-	$(CC) -c -std=c++17 -pthread -lprotoc `pkg-config --cflags --libs protobuf` -lnp $(LIB_INC) $(LIB_DIR) $(SRC)
+msg.pb.o:
+	$(CC) -c -std=c++17 -pthread -lprotoc `pkg-config --cflags --libs protobuf` -lnp $(LIB_INC) $(LIB_DIR) msg.pb.cc
 
 
 clean:
-	rm -f $(TARGET)
+	rm -f $(TARGET) $(OBJ)

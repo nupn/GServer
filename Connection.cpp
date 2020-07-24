@@ -11,12 +11,12 @@ int Connection::GetSocket(){
 		return _socket;
 }
 
-void Connection::SetUser(User user){
+void Connection::SetUser(UserPtr user){
 		_player = user;	
 }
 
-User* Connection::GetUser(){
-		return &_player;
+UserPtr Connection::GetUser(){
+		return _player.lock();
 }
 
 void Connection::Close() {

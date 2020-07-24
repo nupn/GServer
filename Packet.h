@@ -1,7 +1,6 @@
 #pragma once
 #include <string>
-#include "Connection.h"
-
+class Connection;
 class Packet  {
 public:
 	int GetType() {

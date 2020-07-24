@@ -1,5 +1,7 @@
 #pragma once
+#include <memory>
 #include <string>
+#include "PacketHandler.h"
 
 class User  {
 public:
@@ -8,12 +10,15 @@ public:
 		return _socket;
 	};
 
-	void OnPacket(int type, int size, char* buf);
+	bool OnPacket(Packet& packet);
+	void SetLocal(PacketHandlerWeakPtr local);
 
 private:
+	PacketHandlerWeakPtr _localPtr;
+	int _socket;
 	int _id;
 	std::string _name;
-	int _socket;
 };
 
-
+using UserPtr=std::shared_ptr<User>;
+using UserWeakPtr=std::weak_ptr<User>;

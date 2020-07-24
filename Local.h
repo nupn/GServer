@@ -1,13 +1,19 @@
 #pragma once
+#include <vector>
 #include <memory>
+#include "PacketHandler.cpp"
+#include "Packet.h"
+#include "User.h"
 
-class Local {
+class Local : public PacketHandler {
 public:
-	void OnPacket(int type, int size, char* buf);
+	virtual bool OnPacket(Packet& packet) override;
+	bool Enter(UserPtr user);
 private:
-	std::vector<Connection*> _cons;
+	std::vector<UserWeakPtr> _users;
 };
 
 using LocalPtr=std::shared_ptr<Local>;
+using LocalWeakPtr=std::weak_ptr<Local>;
 
 

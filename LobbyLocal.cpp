@@ -1,6 +1,7 @@
-#include "Local.h"
+#include "LobbyLocal.h"
 
 void LobbyLocal::OnPacket(int type, int size, char* buf) {
+	/*
 	switch(packet.GetType()) {
 		case C_CHAT:
 			{
@@ -14,5 +15,5 @@ void LobbyLocal::OnPacket(int type, int size, char* buf) {
 				con->SendPacket<game::chat_message>(S_CHAT, &sendPacket);
 			}
 	}
-
+*/
 }

@@ -16,8 +16,8 @@ class Connection {
 		void SetSocket(int socket);
 		int GetSocket();
 
-		void SetUser(User user);
-		User* GetUser();
+		void SetUser(UserPtr user);
+		UserPtr GetUser();
 
 		void Close();
 
@@ -37,7 +37,7 @@ class Connection {
 			}
 	private:
 		int _socket;
-		User _player;
+		UserWeakPtr _player;
 };
 
 
