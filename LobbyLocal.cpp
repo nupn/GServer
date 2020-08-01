@@ -1,7 +1,9 @@
 #include "LobbyLocal.h"
+#include "Connection.h"
+#include "protocol.h"
 
-void LobbyLocal::OnPacket(int type, int size, char* buf) {
-	/*
+bool LobbyLocal::OnPacket(Packet& packet) {
+	
 	switch(packet.GetType()) {
 		case C_CHAT:
 			{
@@ -15,5 +17,6 @@ void LobbyLocal::OnPacket(int type, int size, char* buf) {
 				con->SendPacket<game::chat_message>(S_CHAT, &sendPacket);
 			}
 	}
-*/
+
+	return false;
 }

@@ -13,8 +13,8 @@ using namespace std;
 using namespace google::protobuf::io;
 class PacketProcessor{
 public:
-	void Run(int nSize, std::function<void(Packet)> func);
-	void Work(std::function<void(Packet)> func);
+	void Run(int nSize);
+	void Work();
 	void Join();
 
 private:

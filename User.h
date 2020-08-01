@@ -3,7 +3,7 @@
 #include <string>
 #include "PacketHandler.h"
 
-class User  {
+class User : public PacketHandler  {
 public:
 	User(){};
 	int Socket() {

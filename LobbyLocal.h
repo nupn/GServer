@@ -4,7 +4,7 @@
 
 class LobbyLocal : public Local {
 public:
-	void OnPacket(int type, int size, char* buf);
+	bool OnPacket(Packet& packet) override;
 private:
 
 };

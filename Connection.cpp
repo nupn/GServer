@@ -11,14 +11,6 @@ int Connection::GetSocket(){
 		return _socket;
 }
 
-void Connection::SetUser(UserPtr user){
-		_player = user;	
-}
-
-UserPtr Connection::GetUser(){
-		return _player.lock();
-}
-
 void Connection::Close() {
 }
 

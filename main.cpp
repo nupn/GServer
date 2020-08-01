@@ -1,7 +1,7 @@
 #include "Server.h"
 
+Server server;
 int main() {
-	Server server;
-	server.Run(8080);
+	server.Run(4807);
 	return 0;
 }

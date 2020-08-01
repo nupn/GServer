@@ -10,12 +10,24 @@
 #include <errno.h>
 #include "protocol.h"
 #include "Server.h"
+#include "Macro.h"
+#include "LoginLocal.h"
+#include "LobbyLocal.h"
+
 #define EPOLL_SIZE 50
 #define USER_SIZE 20
 using namespace std;
 
 Server::Server() {
 	_cons.reserve(USER_SIZE);
+	_login = std::dynamic_pointer_cast<Local>(std::make_shared<LoginLocal>());
+
+	const int lobbySize = 5;
+	for (int i = 0; i < lobbySize; ++i ) {
+		auto lobby = std::dynamic_pointer_cast<Local>(std::make_shared<LobbyLocal>());
+		lobby->SetServer(this);
+		_lobbys.push_back(lobby);
+	}
 }
 
 Connection* Server::GetConnection(int socket){
@@ -36,7 +48,11 @@ Connection* Server::NewConnection(int socket){
 
 	Connection* con = new Connection;
 	con->SetSocket(socket);
+	//localChanget(LocalType::LOCAL_TYPE_LOGIN);
+	con->SetSubHandler(_login);
 	_cons.push_back(con);
+
+	printf("new Connection");
 	return con;
 }
 
@@ -45,44 +61,14 @@ void setnonblockingmode(int fd) {
 	fcntl(fd, F_SETFL, flag|O_NONBLOCK);
 }
 
-void Server::OnPacket(Packet packet) {
-	auto con = packet.GetConnection();
-	switch(packet.GetType()) {
-		case C_LOGIN:
-			{
-				UserPtr user = con->GetUser(); 
-				if (!user)
-				{
-					user = NewUser(con);
-					LocalPtr lobby = GetLobby();
-					if (lobby) {
-						lobby->Enter(user);
-					}
-
-					game::s_login loginPacket;
-					loginPacket.set_id(0);
-					loginPacket.set_name("temp");
-
-					con->SendPacket<game::s_login>(S_LOGIN, &loginPacket);
-				}
-				return;
-			}
-			break;
-	}
-
-	UserPtr user = con->GetUser();
-	if (user) {
-		if (user->OnPacket(packet)) {
-			return;
-		}
-	}
-}
-
 UserPtr Server::NewUser(Connection *con) {
 	return UserPtr(new User());
 }
+
 void Server::Run(int listeningPort) {
 
+	_login->SetServer(this);
+	
 	int listenSocket;
 	int connectedSocket;
 
@@ -107,7 +93,8 @@ void Server::Run(int listeningPort) {
 		return;
 	}
 
-	_packetThread.Run(2, std::bind(&Server::OnPacket, this, std::placeholders::_1));
+	//_packetThread.Run(2, std::bind(&Server::OnPacket, this, std::placeholders::_1));
+	_packetThread.Run(2);
 	setnonblockingmode(listenSocket);
 
 	struct epoll_event stEvent;
@@ -123,10 +110,17 @@ void Server::Run(int listeningPort) {
 	
 	while(1)
 	{
-		printf("OnWiat%d\n", errno);
+		printf("OnWait%d\n", errno);
 		eventCnt = epoll_wait(epfd, epEvents, EPOLL_SIZE, -1);
+		
+		int err = errno;
+		printf("errono %d\n", err);
 		printf("New Epoll%d\n", eventCnt);
 		if (eventCnt == -1) {
+			if (err == EINTR) {
+				continue;
+			}
+
 			printf("onError epoll");
 			break;
 		}
@@ -147,7 +141,6 @@ void Server::Run(int listeningPort) {
 				struct epoll_event stEvent;
 				stEvent.events = EPOLLIN|EPOLLET;
 				stEvent.data.ptr = con;
-
 				printf("connected client socket: %d\n", con->GetSocket());
 				epoll_ctl(epfd, EPOLL_CTL_ADD, connectedSocket, &stEvent);
 
@@ -163,6 +156,23 @@ void Server::Run(int listeningPort) {
 	close(epfd);
 }
 
-LocalPtr Server::GetLobby(){
-	return LocalPtr();
+void Server::LocalChange(LocalType localType, UserPtr user) {
+	switch(localType) {
+		case LocalType::LOCAL_TYPE_LOGIN:
+			{
+				_login->Enter(user);
+			}
+			break;
+		case LocalType::LOCAL_TYPE_LOBBY:
+			{
+				VEC_FOR(_lobbys) {
+					if (!(*iter)->IsFull()) {
+						(*iter)->Enter(user);
+					}
+				}
+			}
+			break;
+		default:
+			break;
+	}	
 }

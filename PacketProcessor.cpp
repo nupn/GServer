@@ -14,17 +14,17 @@ using namespace std;
 using namespace google::protobuf::io;
 #define BUF_SIZE 512
 
-void PacketProcessor::Run(int nSize, std::function<void(Packet)> func) {
+void PacketProcessor::Run(int nSize) {
 	_pthreads.resize(nSize);
 	for (int i = 0; i< nSize; ++i) {
 		_pthreads.at(i).reset(new thread([=](){
-					this->Work(func);
+					this->Work();
 					}));
 	}
 }
 
 
-void PacketProcessor::Work(std::function<void(Packet)> func) {
+void PacketProcessor::Work() {
 	while(1) {
 		Connection* con = CompletionQue::GetInstance()->Get();		
 		printf("onWork : %d\n", con->GetSocket());
@@ -54,7 +54,9 @@ void PacketProcessor::Work(std::function<void(Packet)> func) {
 					game::c_login payload;
 					parseSuccess = payload.ParseFromCodedStream(&coded_input);
 					packet.SetData((void *)&payload);
-					func(packet);
+					packet.SetConnection(con);
+					con->OnPacket(packet);
+					//func(packet);
 				}
 				break;
 
@@ -63,7 +65,9 @@ void PacketProcessor::Work(std::function<void(Packet)> func) {
 					game::chat_message payload;
 					parseSuccess = payload.ParseFromCodedStream(&coded_input);
 					packet.SetData((void *)&payload);
-					func(packet);
+					packet.SetConnection(con);
+					con->OnPacket(packet);
+					//func(packet);
 				}
 		}
 	}
@@ -104,7 +108,6 @@ int PacketProcessor::__ReadPacketBuf(int socket, char* buf, const int bufSize)
 		}
 
 		if (!__readSocket(socket, buf + headerSize, packetSize)){
-			__close(socket);
 			printf("read Body Fail %d\n", socket);
 			return 0;
 		}
@@ -125,6 +128,11 @@ bool PacketProcessor::__readSocket(int socket, char* buf, int size)
 	}	
 
 	if (readLen<0 && errno == EAGAIN) {
+		return false;
+	}
+
+	if (readLen < 0) {
+		__close(socket);
 		return false;
 	}
 

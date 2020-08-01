@@ -4,6 +4,7 @@
 #include "Macro.h"
 
 bool Local::OnPacket(Packet& packet) {
+	/*
 	auto con = packet.GetConnection();
 	switch(packet.GetType()) {
 		case C_CHAT:
@@ -18,11 +19,18 @@ bool Local::OnPacket(Packet& packet) {
 				return true;
 			}
 	}
-	
+	*/
 
 	return false;
 }
 
+bool Local::IsFull() {
+	if (_users.size() >= _maxSize) {
+		return true;
+	}
+
+	return false;
+}
 
 bool Local::Enter(UserPtr user) {
 	VEC_FOR(_users) {
@@ -34,4 +42,9 @@ bool Local::Enter(UserPtr user) {
 
 	_users.push_back(user);
 	return true;
+}
+
+void Local::SetServer(Server *pServer){
+	printf("set server %p\n", pServer);
+	server = pServer;
 }

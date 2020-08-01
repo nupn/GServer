@@ -1,24 +1,19 @@
 #pragma once
 #include <string>
-#include "User.h"
 #include "Config.h"
 #include <sys/socket.h>
 #include <unistd.h>
-
+#include "PacketHandler.h"
 #include "msg.pb.h"
 using namespace google::protobuf::io;
 
-class Connection {
+class Connection : public PacketHandler {
 	public:
 		Connection(){};
 		virtual ~Connection(){};
 
 		void SetSocket(int socket);
 		int GetSocket();
-
-		void SetUser(UserPtr user);
-		UserPtr GetUser();
-
 		void Close();
 
 		template <typename T>
@@ -37,7 +32,6 @@ class Connection {
 			}
 	private:
 		int _socket;
-		UserWeakPtr _player;
 };
 
 
