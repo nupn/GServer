@@ -1,5 +1,11 @@
 #include "User.h"
+#include "Process.h"
 
+User::User(int socket) {
+	_socket = socket;
+}
+
+/*
 bool User::OnPacket(Packet& packet) {
 
 	PacketHandlerPtr ptr = _localPtr.lock();
@@ -9,11 +15,71 @@ bool User::OnPacket(Packet& packet) {
 
 	return false;
 }
-
-void User::SetLocal(PacketHandlerWeakPtr local) {
-	if (local.expired()) {
-		_localPtr.reset();
+*/
+bool User::OnPacket(Packet& packet) {
+	if (!_process.expired()) {
+		auto process = _process.lock();
+		process->OnPacket(packet, GetSharedPtr());
+		return true;
 	}
 
-	_localPtr = local;
+	return false;
 }
+
+void User::SetProcess(std::weak_ptr<Process> process) {
+	if (_process.expired()) {
+		_process.reset();
+	}
+
+	_process = process;
+}
+
+std::weak_ptr<Process> User::GetProcess() {
+	return _process;
+}
+
+int User::MatchValue() {
+	return _matchValue;
+}
+
+bool User::Equal(const MatchSeedWeakPtr matchUser) {
+	auto weakUser = matchUser.lock();
+	if (!weakUser) {
+		return false;
+	}
+
+	auto user = std::dynamic_pointer_cast<User>(weakUser);
+	if (!user) {
+		return false;
+	}
+
+	if (user->MatchValue() != this->MatchValue()) {
+		return false;
+	}
+
+	return true;
+}
+
+bool User::Greater(const MatchSeedWeakPtr matchSeed) {
+	MatchSeedPtr matchUser = matchSeed.lock();
+	if (!matchUser) {
+		return false;
+	}
+
+	UserPtr user = std::dynamic_pointer_cast<User>(matchUser);
+	if (!user) {
+		return false;
+	}
+
+	if (user->MatchValue() <= this->MatchValue()) {
+		return false;
+	}
+
+	return false;
+}
+
+UserPtr User::GetSharedPtr() {
+	return shared_from_this();
+}
+
+

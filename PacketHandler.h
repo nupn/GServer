@@ -13,6 +13,8 @@ public:
 	void SetSubHandler(PacketHandlerPtr user);
 	PacketHandlerPtr GetSubHandler();
 
+	//PacketHandlerPtr GetSelfSharedPtr();
+
 private:
 	PacketHandlerWeakPtr _sub;
 

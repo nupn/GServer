@@ -1,6 +1,7 @@
 #pragma once
+#include <memory>
 #include <string>
-class Connection;
+
 class Packet  {
 public:
 	int GetType() {
@@ -18,17 +19,18 @@ public:
 	void * GetData() {
 		return _data;
 	}
-	
-	Connection* GetConnection() {
-		return _con;
-	}
-	
-	void SetConnection(Connection *con) {
-		_con = con;
-	}
 
+/*
+	std::shared_ptr<User> GetUser() {
+		return _user;
+	}
+	
+	void SetUser(std::shared_ptr<User> user) {
+		_user = user;
+	}
+*/
 private:
-	Connection *_con;
+	//std::shared_ptr<User> _user;
 	void *_data;
 	int _type;
 };

@@ -1,37 +1,38 @@
 #pragma once
 #include "PacketHandler.h"
 #include "User.h"
-#include "Packet.h"
-#include "Connection.h"
-#include "PacketProcessor.h"
-#include "Local.h"
+#include "PacketProcessThread.h"
+#include "LoginProcess.h"
+#include "TetrisProcess.h"
 #include <vector>
 
-enum class LocalType{
-	LOCAL_TYPE_LOGIN,
-	LOCAL_TYPE_LOBBY
+
+enum ProcessType {
+	PROCESS_LOGIN,
+	PROCESS_LOBBY,
+	PROCESS_GAME
 };
 
-class Server {
+class Server : public PacketHandler {
 public:
 	Server();
 	void Run(int listeningPort);
-
-	Connection* GetConnection(int socket);
-	Connection* NewConnection(int socket);
-
-	//game logic
-	UserPtr NewUser(Connection *con);
-
-	void LocalChange(LocalType localType, UserPtr user);
+	bool ChangeProcess(ProcessPtr prevProcess, int changeProcessType, UserList users);
 private:
-	Connection userLogin;
-	PacketProcessor _packetThread;
-	LocalPtr _login;
+	UserPtr _GetUser(int socket);
+	UserPtr _CreateUser(int socket);
+	void _AddEpoll(UserPtr data);
+	int _AcceptSocket(int socket);
+	void _AcceptConnection(int socket);
+	void _Init();
 
-	std::vector<Connection*> _cons;
-	std::vector<LocalPtr> _lobbys;
+private:
+	PacketProcessThread _packetThread;
+	LoginProcessor _loginProcessor;
+	TetrisProcessor _tetrisProcessor;
+
 	std::vector<UserPtr> _users;
+	int _epollFileDescrtion;
 };
 
 

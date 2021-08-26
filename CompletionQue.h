@@ -6,30 +6,30 @@
 #include <atomic>
 #include "Singletone.h"
 #include <utility>
-#include "Connection.h"
+#include "User.h"
 using namespace std;
 
 
 class CompletionQue : public Singletone<CompletionQue> {
 	public:
 		CompletionQue() noexcept = default;
-		void Add(Connection* p)
+		void Add(UserPtr user)
 		{//move지원하도록 변경
 			unique_lock<mutex> lock(_lock);
-			_values.push_back(p);
+			_values.push_back(user);
 			_cond.notify_one();
 		}
 
-		Connection* Get() {
+		UserPtr Get() {
 
 			unique_lock<mutex> lock(_lock);
 			while (_values.empty()){
 				_cond.wait(lock);
 			}
 
-			auto ret = _values.front();	
+			auto user = _values.front();	
 			_values.pop_front();
-			return ret;
+			return user;
 		}
 
 		bool isEmpty() {
@@ -38,7 +38,7 @@ class CompletionQue : public Singletone<CompletionQue> {
 		}
 
 	private:
-		list<Connection *>	_values;
+		list<UserPtr>	_values;
 		mutex		_lock;
 		condition_variable _cond;
 };

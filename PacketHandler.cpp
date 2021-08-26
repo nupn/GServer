@@ -21,4 +21,3 @@ PacketHandlerPtr PacketHandler::GetSubHandler() {
 	return _sub.lock();
 }
 
-
