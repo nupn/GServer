@@ -4,14 +4,17 @@
 
 class LoginProcess;
 using LoginProcessPtr = std::shared_ptr<LoginProcess>;
-class LoginProcess : public Process, std::enable_shared_from_this<LoginProcess> {
+class LoginProcess : public Process {
 public:
 	bool OnPacket(Packet& packet, UserPtr user) override;
-	LoginProcessPtr GetSelfPtr();
+private:
+	int _id;
 };
 
 class LoginProcessor : public Processor
 {
 public:
+	void Init(Server *server);
+private:
 };
 

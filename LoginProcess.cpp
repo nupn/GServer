@@ -4,21 +4,25 @@
 #include "Server.h"
 
 bool LoginProcess::OnPacket(Packet& packet, UserPtr user) {
+
+	printf("LoginProcess packet %d\n", packet.GetType());
 	switch(packet.GetType()) {
 		case C_LOGIN:
 			{
-				//UserPtr user = server->NewUser(con);
-				ProcessPtr process = std::dynamic_pointer_cast<Process>(GetSelfPtr());
-				if (server()->ChangeProcess(process, PROCESS_LOGIN, {user})) {
+				ProcessPtr process = GetSharedPtr();
+				if (server()->ChangeProcess(process, PROCESS_LOBBY, user)) {
+					++_id;
+					char userName[50];
+					sprintf(userName, "temp%d", _id);
+					user->SetName(userName);
 
 					game::s_login loginPacket;
-					loginPacket.set_id(0);
-					loginPacket.set_name("temp");
+					loginPacket.set_id(_id);
+					loginPacket.set_name(userName);
 					user->SendPacket<game::s_login>(S_LOGIN, &loginPacket);
-					printf("onLogin");
+					printf("onLogin\n");
 				}
 
-				//con->SetSubHandler(std::dynamic_pointer_cast<PacketHandler>(user));
 				return true;
 			}
 			break;
@@ -26,8 +30,10 @@ bool LoginProcess::OnPacket(Packet& packet, UserPtr user) {
 	return false;
 }
 
-LoginProcessPtr LoginProcess::GetSelfPtr() {
-	return shared_from_this();
+void LoginProcessor::Init(Server *server)
+{
+	Processor::Init(server);
+	LoginProcessPtr process = std::make_shared<LoginProcess>();
+	process->Init(server);
+	_process.push_back(process);
 }
-
-

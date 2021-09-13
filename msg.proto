@@ -13,3 +13,4 @@ message s_login {
 	required int32 id = 1;
 	required string name = 2;
 }
+

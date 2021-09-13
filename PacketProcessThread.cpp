@@ -10,7 +10,6 @@
 #include "CompletionQue.h"
 #include "Packet.h"
 #include "protocol.h"
-#include "User.h"
 
 using namespace std;
 using namespace google::protobuf::io;
@@ -31,9 +30,15 @@ void PacketProcessThread::Work() {
 		UserPtr user = CompletionQue::GetInstance()->Get();		
 		printf("onWork : %d\n", user->GetSocket());
 		char buf[BUF_SIZE];
-		int size = __ReadPacketBuf(user->GetSocket(), buf, BUF_SIZE);
+
+		const int READ_END = -1;
+		int size = __ReadPacket(user->GetSocket(), buf, BUF_SIZE);
 		if (size == 0)	{
-			//user->Close();
+			user->CloseConnection();
+			continue;
+		}
+
+		if (size == READ_END) {
 			continue;
 		}
 
@@ -50,6 +55,7 @@ void PacketProcessThread::Work() {
 
 		bool parseSuccess = false;
 		google::protobuf::io::CodedInputStream::Limit msgLimit = coded_input.PushLimit(packetSize);
+		printf("on Packet %d\n", packetType);
 		switch (packetType) {
 			case C_LOGIN:
 				{
@@ -74,20 +80,14 @@ void PacketProcessThread::Work() {
 	}
 }
 
-void PacketProcessThread::__close(int socket)
-{
-	//epoll_ctl(nEpollFd, EPOLL_CTL_DEL, socket, NULL);
-	//close(socket);
-	printf("close connect\n");
-}
-
-int PacketProcessThread::__ReadPacketBuf(int socket, char* buf, const int bufSize)
+int PacketProcessThread::__ReadPacket(int socket, char* buf, const int bufSize)
 {
 	while (1){
 		//read Head
 		const int headerSize = 8;
-		if (!__readSocket(socket, buf, headerSize)){
-			return 0;
+		int readLen = __ReadSocket(socket, buf, headerSize);
+		if (readLen <= 0) {
+			return readLen;
 		}
 
 		google::protobuf::io::ArrayInputStream ais(buf, headerSize);
@@ -108,36 +108,36 @@ int PacketProcessThread::__ReadPacketBuf(int socket, char* buf, const int bufSiz
 			return headerSize;
 		}
 
-		if (!__readSocket(socket, buf + headerSize, packetSize)){
-			printf("read Body Fail %d\n", socket);
-			return 0;
+		readLen = __ReadSocket(socket, buf + headerSize, packetSize);
+		if (readLen <= 0) {
+			printf("read Body Fail socket: %d len: %d\n", socket, readLen);
+			return readLen;
 		}
 
 		return packetSize + headerSize;
 	}
 }
 
-bool PacketProcessThread::__readSocket(int socket, char* buf, int size)
+int PacketProcessThread::__ReadSocket(int socket, char* buf, int size)
 {
 	printf("read Start %d : %d \n", socket, size);
 	int readLen = read(socket, buf, size);
 	printf("read end %d : %d \n", socket, readLen);
 
-	if (readLen==0) {
-		__close(socket);
-		return false;
+	if (readLen == 0) {
+		return 0;
 	}	
 
-	if (readLen<0 && errno == EAGAIN) {
-		return false;
+	const int READ_END = -1;
+	if (readLen < 0 && errno == EAGAIN) {
+		return READ_END;
 	}
 
 	if (readLen < 0) {
-		__close(socket);
-		return false;
+		return 0;
 	}
 
-	return true;
+	return readLen;
 }
 
 void PacketProcessThread::Join() {

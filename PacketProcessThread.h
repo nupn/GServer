@@ -7,6 +7,7 @@
 #include <vector>
 #include <functional>
 #include "Packet.h"
+#include "User.h"
 
 using namespace std;
 using namespace google::protobuf::io;
@@ -17,9 +18,8 @@ public:
 	void Join();
 
 private:
-	void __close(int socket);
-	int __ReadPacketBuf(int socket, char *buf, const int MaxSize);
-	bool __readSocket(int socket, char* buf, int size);
+	int __ReadPacket(int socket, char *buf, const int MaxSize);
+	int __ReadSocket(int socket, char* buf, int size);
 
 
 	google::protobuf::uint32 __readHeader(char* buf);

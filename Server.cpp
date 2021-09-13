@@ -20,9 +20,9 @@ Server::Server() {
 }
 
 void Server::_Init() {
-	_users.reserve(USER_SIZE);
 	_loginProcessor.Init(this);
 	_tetrisProcessor.Init(this);
+	_lobbyProcessor.Init(this);
 }
 
 void setnonblockingmode(int fd) {
@@ -31,36 +31,24 @@ void setnonblockingmode(int fd) {
 }
 
 void Server::Run(int listeningPort) {
-	
-	int listenSocket = socket(PF_INET, SOCK_STREAM, 0);
 
-	struct sockaddr_in listenAddr;
-	memset(&listenAddr, 0, sizeof(listenAddr));
-	listenAddr.sin_family =AF_INET;
-	listenAddr.sin_addr.s_addr= htonl(INADDR_ANY);
-	listenAddr.sin_port = htons(listeningPort);
-
-	if (bind(listenSocket, (struct sockaddr*)&listenAddr, sizeof(listenAddr)) == -1)
-	{
-		printf("error Bind : %d", listeningPort);
-		return;
-	}
-
-	if (listen(listenSocket,5)==1)
-	{
-		printf("error Handling");
-		return;
-	}
 
 	//_packetThread.Run(2, std::bind(&Server::OnPacket, this, std::placeholders::_1));
 	_packetThread.Run(2);
-	setnonblockingmode(listenSocket);
 
+	_listeningPort = listeningPort;
 	_epollFileDescrtion = epoll_create(EPOLL_SIZE);
-	_AddEpoll(NULL); // NULL mean ConnectSocket
-
-	struct epoll_event *epEvents = (struct epoll_event*) malloc(sizeof(struct epoll_event) * EPOLL_SIZE);
 	
+	/*
+	struct epoll_event stEvent;
+	stEvent.events = EPOLLIN|EPOLLET;
+	stEvent.data.ptr = NULL;
+	epoll_ctl(_epollFileDescrtion, EPOLL_CTL_ADD, listenSocket, &stEvent);
+	*/
+	struct epoll_event *epEvents = (struct epoll_event*) malloc(sizeof(struct epoll_event) * EPOLL_SIZE);
+
+	thread listenThread(&Server::Listening, this);
+
 	while(1)
 	{
 		int eventCnt = epoll_wait(_epollFileDescrtion, epEvents, EPOLL_SIZE, -1);
@@ -71,13 +59,12 @@ void Server::Run(int listeningPort) {
 				continue;
 			}
 
-			printf("onError epoll");
+			printf("onError epoll\n");
 			break;
 		}
 
 		for (int i =0; i < eventCnt; ++i) {
 			if (epEvents[i].data.ptr == NULL) {
-				_AcceptConnection(listenSocket);
 			} else {
 				User *user = (User *)epEvents[i].data.ptr;
 				CompletionQue::GetInstance()->Add(user->GetSharedPtr());
@@ -86,8 +73,68 @@ void Server::Run(int listeningPort) {
 		}
 	}
 
-	close(listenSocket);
 	close(_epollFileDescrtion);
+	listenThread.join();
+}
+
+void Server::Listening() {	
+	printf("listening to %d\n", _listeningPort);	
+	int listenSocket = socket(PF_INET, SOCK_STREAM, 0);
+
+	struct sockaddr_in listenAddr;
+	memset(&listenAddr, 0, sizeof(listenAddr));
+	listenAddr.sin_family =AF_INET;
+	listenAddr.sin_addr.s_addr= htonl(INADDR_ANY);
+	listenAddr.sin_port = htons(_listeningPort);
+
+	if (bind(listenSocket, (struct sockaddr*)&listenAddr, sizeof(listenAddr)) == -1)
+	{
+		printf("error Bind : %d", _listeningPort);
+		return;
+	}
+
+	if (listen(listenSocket,5)==1)
+	{
+		printf("error Handling");
+		return;
+	}
+	
+	setnonblockingmode(listenSocket);
+
+	struct sockaddr_in clientAddr;
+	socklen_t clientAddrSize = sizeof(clientAddr);
+	while(1)
+	{
+		_CloseUnuseConnection();
+
+		int clientSocket = accept(listenSocket, (struct sockaddr*)&clientAddr, &clientAddrSize);
+		if (clientSocket != -1) {
+			_NewConnection(clientSocket);
+		}
+
+		this_thread::sleep_for(chrono::milliseconds(10));
+	}
+	
+	close(listenSocket);
+}
+
+void Server::_CloseUnuseConnection() {
+	for (auto i = begin(_users); i != end(_users);) {
+		auto user = *i;
+		if (user->CloseReserved()) { 
+			int clientSocket = user->GetSocket();
+			user->CloseConnection();
+			auto processSharePtr = user->GetProcess().lock();
+			processSharePtr->LeaveUser(user);
+			printf("close User socket(%d)\n", user->GetSocket());
+			i = _users.erase(i);
+			close(clientSocket);
+			epoll_ctl(_epollFileDescrtion, EPOLL_CTL_DEL, user->GetSocket(), NULL);//
+		} else {
+		   i++;
+		}
+	}
+
 }
 
 UserPtr Server::_GetUser(int socket) {
@@ -120,40 +167,31 @@ void Server::_AddEpoll(UserPtr user) {
 	epoll_ctl(_epollFileDescrtion, EPOLL_CTL_ADD, user->GetSocket(), &stEvent);
 }
 
-int Server::_AcceptSocket(int socket) {
-	struct sockaddr_in connectedAddr;
-	socklen_t addrSize = sizeof(connectedAddr);
-	int connectedSocket = accept(socket, (struct sockaddr*)&connectedAddr, &addrSize);
-	setnonblockingmode(connectedSocket);
-
-	printf("connected client socket: %d\n", connectedSocket);
-	return connectedSocket;
-}
-
-void Server::_AcceptConnection(int socket) {
-	int connectSocket = _AcceptSocket(socket);
-	UserPtr user = _CreateUser(connectSocket);
+void Server::_NewConnection(int clientSocket) {
+	UserPtr user = _CreateUser(clientSocket);
 	if (!user) {
 		return;
 	}
 
-	ChangeProcess(nullptr, ProcessType::PROCESS_LOGIN, {user});
+	printf("connected client socket: %d\n", clientSocket);
+	setnonblockingmode(clientSocket);
+	ChangeProcess(nullptr, ProcessType::PROCESS_LOGIN, user);
 	_AddEpoll(user);
 }
 
-bool Server::ChangeProcess(ProcessPtr prevProcess, int changeProcessType, UserList users)
-{
+bool Server::ChangeProcess(ProcessPtr prevProcess, int changeProcessType, UserPtr users) {
 	if (prevProcess) {
-		//prevProcess->LeaveUser(users);
+		prevProcess->LeaveUser(users);
 	}
 
 	switch (changeProcessType) {
 		case ProcessType::PROCESS_LOGIN:
-			//return _loginProcessor.JoinUser(users);
+			return _loginProcessor.JoinUser(users);
 		case ProcessType::PROCESS_LOBBY:
+			return _lobbyProcessor.JoinUser(users);
 			break;
 		case ProcessType::PROCESS_GAME:
-			//return _tetrisProcessor.JoinUser(users);
+			return _tetrisProcessor.JoinUser(users);
 		default:
 			break;
 	}

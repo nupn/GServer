@@ -1,0 +1,3 @@
+/home/ubuntu/work/gserver/CMakeFiles/rebuild_cache.dir
+/home/ubuntu/work/gserver/CMakeFiles/gserver-1.1.out.dir
+/home/ubuntu/work/gserver/CMakeFiles/edit_cache.dir

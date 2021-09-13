@@ -3,6 +3,7 @@
 
 User::User(int socket) {
 	_socket = socket;
+	_toBeClose = false;
 }
 
 /*
@@ -20,6 +21,7 @@ bool User::OnPacket(Packet& packet) {
 	if (!_process.expired()) {
 		auto process = _process.lock();
 		process->OnPacket(packet, GetSharedPtr());
+		printf("user::onPacket success\n");
 		return true;
 	}
 
@@ -32,6 +34,11 @@ void User::SetProcess(std::weak_ptr<Process> process) {
 	}
 
 	_process = process;
+}
+
+void User::ResetProcess()
+{
+	_process.reset();
 }
 
 std::weak_ptr<Process> User::GetProcess() {
@@ -82,4 +89,20 @@ UserPtr User::GetSharedPtr() {
 	return shared_from_this();
 }
 
+
+void User::CloseConnection(){
+	_toBeClose = true;
+}
+
+bool User::CloseReserved(){
+	return _toBeClose;
+}
+
+void User::SetName(const char *name) {
+	_name = std::string(name);
+}
+
+std::string User::GetName() {
+	return _name;
+}
 

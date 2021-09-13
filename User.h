@@ -16,16 +16,20 @@ using UserPtr=std::shared_ptr<User>;
 using UserWeakPtr=std::weak_ptr<User>;
 using UserList=std::list<UserPtr>;
 
-class User : public PacketHandler, public MatchSeed, std::enable_shared_from_this<User>{
+class User : public PacketHandler, public MatchSeed, public std::enable_shared_from_this<User>{
 public:
 	User(int socket);
 	int GetSocket() {
 		return _socket;
 	};
 
+	void CloseConnection();
+	bool CloseReserved();
+
 	bool OnPacket(Packet& packet);
 	void SetProcess(std::weak_ptr<Process> process);
 	std::weak_ptr<Process> GetProcess();
+	void ResetProcess();
 
 	/*template <typename T>
 			void SendPacket(int type, T *payload) {
@@ -33,6 +37,10 @@ public:
 			}*/
 	template <typename T>
 			void SendPacket(int type, T *payload) {
+				if (CloseReserved()) {
+					return;
+				}
+	
 				char sendbuf[512];
 				int sendSize = payload->ByteSizeLong() + 8;
 
@@ -53,12 +61,16 @@ public:
 	int MatchValue();
 	UserPtr GetSharedPtr();
 
+	void SetName(const char *name);
+	std::string GetName();
+
 private:
 	int _matchValue;
 	std::weak_ptr<Process> _process;
 	int _socket;
 	int _id;
 	std::string _name;
+	bool _toBeClose;
 };
 
 
